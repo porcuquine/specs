@@ -23,10 +23,14 @@
 <link rel="icon" href="../../favicon.png" type="image/x-icon">
 
 
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js">
+</script>
+
 <!--
 Made with Book Theme
 https://github.com/alex-shpak/hugo-book
 -->
+
 
   <link rel="stylesheet" href="../../css/syntax.css">
 <link href="../../mermaid/mermaid.css" type="text/css" rel="stylesheet" />
@@ -68,7 +72,6 @@ https://github.com/alex-shpak/hugo-book
 <ul>
 <li><a href="../../docs/address/">Address</a></li>
 <li><a href="../../docs/signatures/">Signatures</a></li>
-<li><a href="../../docs/proofs/">Proofs</a></li>
 <li><a href="../../docs/validation/">Block Validation</a></li>
 </ul></li>
 <li><a href="../../docs/networking/">Network</a>
@@ -95,10 +98,16 @@ https://github.com/alex-shpak/hugo-book
 <li><a href="../../docs/faults/">Faults</a></li>
 </ul>
 
-<p><strong>Proofs</strong></p>
+<p><a href="../../docs/proofs/"><strong>Proofs</strong></a></p>
 
 <ul>
-<li><a href="../../docs/zigzag-circuit/">ZigZag</a></li>
+<li><a href="../../docs/zigzag-porep/">Proof-of-Replication</a>
+
+<ul>
+<li><a href="../../docs/zigzag-commitments/">ZigZag Commitments</a></li>
+<li><a href="../../docs/zigzag-circuit/">Circuit</a></li>
+</ul></li>
+<li><a href="../../docs/proof-of-spacetime/">Proof-of-Spacetime</a></li>
 </ul>
 
 <p><a href="../../docs/definitions/"><strong>Glossary</strong></a></p>
@@ -149,26 +158,38 @@ https://github.com/alex-shpak/hugo-book
 <article class="markdown">
   
 
-<h1 id="filecoin-proofs">Filecoin Proofs</h1>
+<h1 id="proofs">Proofs</h1>
 
-<p>The Filecoin protocol requires a means of generating and verifying the following cryptographic proofs:</p>
+<h2 id="overview">Overview</h2>
+
+<p>The Filecoin protocol uses cryptographic proofs to ensure the two following guarantees:</p>
 
 <ul>
-<li><strong><em>Proof of Replication</em></strong> proves that a unique copy of a given <strong><em>sector</em></strong> has been created. The <code>Seal</code> operation creates this unique copy and generates a corresponding <strong><em>Proof of Replication</em></strong>.</li>
-<li><strong><em>Proof of Space-Time</em></strong> proves that an arbitrary number of <strong><em>sealed sectors</em></strong> existed over a specified period of time in their own dedicated storage — as opposed to being generated on-the-fly at proof time.</li>
-<li><strong><em>Piece Inclusion Proof</em></strong> proves that a given <strong><em>piece</em></strong> is contained within a specified <strong><em>sealed sector</em></strong>.</li>
-<li><strong><em>Proof of Retrievability</em></strong> is a merkle proof that a given challenged leaf is present in an extant <strong><em>sealed
-sector</em></strong>.</li>
+<li><strong>Storage Based Consensus</strong>: Miners&rsquo; power in the consensus is proportional to their amount of storage. Miner increase their power by proving that they are dedicating unique storage to the network.</li>
+<li><strong>Verifiable Storage Market</strong>: Miners must be proving that they are dedicating unique physical space for each copy of the clients data through a period of time.</li>
 </ul>
+
+<p>We briefly describe the three main Filecoin proofs:</p>
+
+<ul>
+<li><strong><em>Proof-of-Replication (PoRep)</em></strong> proves that a Storage Miner is dedicating unique dedicated storage for each <strong><em>sector</em></strong>. Filecoin Storage Miners collect new clients&rsquo; data in a sector, run a slow encoding process (called <code>Seal</code>) and generate a proof (<code>SealProof</code>) that the encoding was generated correctly.</li>
+</ul>
+
+<p>In Filecoin, PoRep provides two guarantees: (1) <em>space-hardness</em>: Storage Miners cannot lie about the amount of space they are dedicating to Filecoin in order to gain more power in the consensus; (2) <em>replication</em>: Storage Miners are dedicating unique storage for each copy of their clients data.</p>
+
+<ul>
+<li><p><strong><em>Proof of Spacetime</em></strong> proves that an arbitrary number of <strong><em>sealed sectors</em></strong> existed over a specified period of time in their own dedicated storage — as opposed to being generated on-the-fly at proof generation time.</p></li>
+
+<li><p><strong><em>Piece-Inclusion-Proof</em></strong> proves that a given <strong><em>piece</em></strong> is contained within a specified <strong><em>sealed sector</em></strong>.</p></li>
+</ul>
+
+<h2 id="glossary">Glossary</h2>
 
 <p>Throughout this document, the following definitions are used:</p>
 
 <ul>
-<li><strong><em>sector:</em></strong> a fixed-size block of data of <code>SECTOR_SIZE</code> bytes.
-
-<ul>
-<li><strong><em>piece:</em></strong> a block of data of at most <code>SECTOR_SIZE</code> bytes.</li>
-</ul></li>
+<li><strong><em>sector:</em></strong> a fixed-size block of data of <code>SECTOR_SIZE</code> bytes which generally contains clients&rsquo; data.</li>
+<li><strong><em>piece:</em></strong> a block of data of at most <code>SECTOR_SIZE</code> bytes which is generally is a client&rsquo;s file or part of.</li>
 <li><strong><em>original data:</em></strong> the concatenation of a <strong><em>sector&rsquo;s</em></strong> constitutent pieces, all <strong><em>piece padding</em></strong>, and any <strong><em>terminal padding</em></strong>.</li>
 <li><strong><em>unsealed sector:</em></strong> a concrete representation (on disk or in memory) of a sector&rsquo;s <strong><em>original data</em></strong>.</li>
 <li><strong><em>sealed sector:</em></strong> a concrete representation (on disk or in memory) of the unique replica generated by <code>Seal</code> from an <strong><em>unsealed sector</em></strong>.</li>
@@ -179,24 +200,30 @@ sector</em></strong>.</li>
 <li><strong><em>preprocessed sector:</em></strong> a concrete representation (on disk or in memory) of a <strong><em>sector&rsquo;s</em></strong> <strong><em>preprocessed data</em></strong>.</li>
 <li><strong><em>SNARK proof:</em></strong> a block of bytes which proves that the creator is in possession of a satisfying assignment to a quadratic arithmetic program (<strong><em>circuit</em></strong>).</li>
 <li><strong><em>Multi-SNARK proof:</em></strong> a block of one or more <strong><em>SNARK proofs</em></strong>, each proving partition of the total set of challenges to be proved.</li>
-<li><strong><em>merkle inclusion proof:</em></strong> a proof (whose format is unspecified here) that a given leaf block is contained within a merkle tree whose root is the <strong><em>commitment</em></strong> associated with the proof.</li>
+<li><strong><em>Merkle inclusion proof:</em></strong> a proof (whose format is unspecified here) that a given leaf block is contained within a merkle tree whose root is the <strong><em>commitment</em></strong> associated with the proof.</li>
 <li><strong><em>commitment:</em></strong> an opaque block of data to which a prover &lsquo;commits&rsquo;, enabling subsequent proofs which cannot be validly constructed unless the <strong><em>commitment</em></strong> itself was validly constructed. For example: the output of a suitable pseudorandom collision-resistant hash function may serve as a <strong><em>commitment</em></strong> to the data which is the preimage of that hash. Publication of the <strong><em>commitment</em></strong> proves that the creator was in possession of the preimage at the time the <strong><em>commitment</em></strong> was generated.</li>
-<li><strong><em>prover:</em></strong> the party who generates a proof.</li>
-<li><strong><em>verifier:</em></strong> the party who verifies a proof generated by a <strong><em>prover</em></strong>.</li>
-<li><strong><em>sectors count:</em></strong> the number of sectors over which a proof-of-spacetime is performed (<code>POST_SECTORS_COUNT</code>, <code>16 PiB / 64 GiB = 262144</code>).</li>
+<li><strong><em>prover:</em></strong> the party who generates a proof, in Filecoin it&rsquo;s always the Storage Miner.</li>
+<li><strong><em>verifier:</em></strong> the party who verifies a proof generated by a <strong><em>prover</em></strong>, in Filecoin it&rsquo;s a full node.</li>
 </ul>
 
-<h2 id="filecoin-proof-of-replication">Filecoin Proof of Replication</h2>
+<p>The <code>SectorID</code> defined by the chain is a<code>u64</code>, which gets encoded as a 31-byte array for the purpose of proofs. This transform consists of encoding the number to its little-endian byte representation and then zero-pad to 31-bytes.</p>
+
+<p>Example:</p>
+
+<pre><code>uint64(1025) -&gt; [1 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+</code></pre>
+
+<h2 id="proof-of-replication-algorithms">Proof-of-Replication Algorithms</h2>
 
 <p><strong><em>Filecoin Proof of Replication</em></strong> generates a unique copy (<strong><em>sealed sector</em></strong>) of a <strong><em>sector&rsquo;s</em></strong> <strong><em>original data</em></strong>, a <strong><em>Multi-SNARK proof</em></strong>, and a set of <strong><em>commitments</em></strong> identifying the <strong><em>sealed sector</em></strong> and linking it to the corresponding <strong><em>unsealed sector</em></strong>.</p>
 
-<h2 id="seal">Seal</h2>
+<h3 id="seal">Seal</h3>
 
 <p><code>Seal</code> has the side effect of generating a <strong><em>sealed sector</em></strong> from an <strong><em>unsealed sector</em></strong>,  and returns identifying <strong><em>commitments</em></strong> and a <strong><em>Multi-SNARK proof</em></strong>. The proof returned is a <strong><em>Multi-SNARK proof</em></strong>.</p>
 
-<p>The commitments are used to verify that the correct <strong><em>original data</em></strong> was sealed, and that the correct <strong><em>sealed data</em></strong> is the subject of later <strong><em>Proofs of Space-Time</em></strong>, proving that this data is being stored continuously.</p>
+<p>The commitments are used to verify that the correct <strong><em>original data</em></strong> was sealed, and that the correct <strong><em>sealed data</em></strong> is the subject of later <strong><em>Proofs of Spacetime</em></strong>, proving that this data is being stored continuously.</p>
 
-<p><code>Seal</code> operates by performing a slow encoding of the <strong><em>unsealed sector</em></strong> — such that it is infeasible for a dishonest prover to computationally regenerate the <strong><em>sealed sector</em></strong> quickly enough to satisfy subsequent required <strong><em>Proofs of Space-Time</em></strong> — thus ensuring that the <strong><em>sealed sector</em></strong> remains manifest as a unique, concrete representation of the <strong><em>original data</em></strong>.</p>
+<p><code>Seal</code> operates by performing a slow encoding of the <strong><em>unsealed sector</em></strong> — such that it is infeasible for a dishonest prover to computationally regenerate the <strong><em>sealed sector</em></strong> quickly enough to satisfy subsequent required <strong><em>Proofs of Spacetime</em></strong> — thus ensuring that the <strong><em>sealed sector</em></strong> remains manifest as a unique, concrete representation of the <strong><em>original data</em></strong>.</p>
 
 <pre><code>Seal
  (
@@ -222,8 +249,7 @@ sector</em></strong>.</li>
 
 <p><code>VerifySeal</code> is the functional counterpart to <code>Seal</code>&rsquo;s proof component. It takes all of <code>Seal's</code> outputs, along with those of Seal&rsquo;s inputs which are required to uniquely identify the created <strong><em>sealed sector</em></strong>. This allows a <strong><em>verifier</em></strong> to determine whether a given proof is valid.  All inputs are required because verification requires sufficient context to determine not only that a proof is <em>valid</em> but also that the proof indeed corresponds to what it purports to prove.</p>
 
-<pre><code>
-VerifySeal
+<pre><code>VerifySeal
  (
   // request represents a request to verify the output of a Seal() operation.
   commD       [32]byte, // returned from Seal
@@ -250,6 +276,7 @@ VerifySeal
   outputPath    string,   // path to which unsealed bytes will be written (regular file, ramdisk, etc.)
   proverID      [31]byte, // uniquely identifies miner
   sectorID      [31]byte, // uniquely identifies sector
+  ticket        [32]byte, // ticket to which miner committed when sealing began
   startOffset   uint64,   // zero-based byte offset in original, unsealed sector-file
   numBytes      uint64,   // number of bytes to unseal (corresponds to contents of unsealed sector-file)
  ) err Error |
@@ -266,50 +293,9 @@ VerifySeal
 
 <hr />
 
-<h2 id="proof-of-space-time">Proof of Space-Time</h2>
-
-<p><strong>NOTE:</strong> <strong><em>Proof of Space-Time</em></strong> is in transition. Current implementations are mocked, and the final design has not been implemented. Consumers may refer to the below for reference, but nothing should be implemented until the spec is updated and synchronized with what will be the canonical construction.</p>
-
-<h3 id="generatepost">GeneratePost</h3>
-
-<p><code>GeneratePoSt</code> generates a <strong><em>Proof of Space-Time</em></strong> over <code>POST_SECTORS_COUNT</code> <strong><em>sealed sectors</em></strong> — identified by their <code>commR</code> commitments. This is accomplished by performing a series of merkle inclusion proofs (<strong><em>Proofs of Retrievability</em></strong>). Each proof is of a challenged node in a challenged sector. The challenges are generated pseudo-randomly, based on the provided <code>challengeSeed</code>. At each time step, a number of <strong><em>Proofs of Retrievability</em></strong> are performed. The result of each such set of <strong><em>Proofs of Retrievability</em></strong> is used to seed challenge generation for another iteration. Repeated and necessarily sequential generation of these <strong><em>Proofs of Retrievability</em></strong> proves that the claimed <strong><em>sealed sectors</em></strong> existed during the time required to generate them.</p>
-
-<p>Since many <strong><em>sealed sectors</em></strong> may be proved at once, it may be the case that one or more <strong><em>sealed sectors</em></strong> has been lost, damaged, or otherwise become impossible to validly prove. In this case, a fault is recorded and returned in an array of faults. This allows provers to selectively default on individual <strong><em>sealed sector</em></strong> proofs while still providing a verifiable proof of their aggregate <strong><em>Proof of Space-Time</em></strong> claims.</p>
-
-<pre><code>GeneratePoSt
- (
-  // request represents a request to generate a proof-of-spacetime.
-  commRs         [POST_SECTORS_COUNT][32]byte,  // the commR commitments corresponding to the sealed sectors to prove
-  challengeSeed  [32]byte,    // a pseudo-random value to be used in challenge generation
-) err Error | (
-  // response contains PoST proof and any faults that may have occurred.
-  faults        []uint64,    // faults encountered while proving (by index of associated commR in the input)
-  proof         []byte
-)
-</code></pre>
-
-<h3 id="verifypost">VerifyPoSt</h3>
-
-<p><code>VerifyPoSt</code> is the functional counterpart to <code>GeneratePoSt</code>. It takes all of <code>GeneratePoSt</code>&rsquo;s output, along with those of <code>GeneratePost</code>&rsquo;s inputs required to identify the claimed proof. All inputs are required because verification requires sufficient context to determine not only that a proof is valid but also that the proof indeed corresponds to what it purports to prove.</p>
-
-<pre><code>VerifyPoSt
- (
-  // request represents a request to generate verify a proof-of-spacetime.
-  commRs        [POST_SECTORS_COUNT][32]byte,        // the commRs provided to GeneratePoSt
-  challengeSeed [32]byte,
-  faults        []uint64
-  proof         []byte,            // Multi-SNARK proof returned by GeneratePoSt
- ) err Error |
-  isValid bool                     // true iff the provided Proof of Space-Time is valid
-</code></pre>
-
-<hr />
-
 <h2 id="piece-inclusion-proof">Piece Inclusion Proof</h2>
 
-<h3 id="pieceinclusionproof">PieceInclusionProof</h3>
-
-<p>A <code>PieceInclusionProof</code> contains a potentially complex merkle inclusion proof that all leaves included in <code>commP</code> (the piece commitment) are also included in <code>commD</code> (the sector data commitment).</p>
+<p>A <code>PieceInclusionProof</code> contains a potentially complex Merkle inclusion proof that all leaves included in <code>commP</code> (the piece commitment) are also included in <code>commD</code> (the sector data commitment).</p>
 
 <pre><code>struct PieceInclusionProof {
     Position uint,
@@ -320,20 +306,17 @@ VerifySeal
 <h3 id="generatepieceinclusionproofs">GeneratePieceInclusionProofs</h3>
 
 <p><code>GeneratePieceInclusionProofs</code> takes a merkle tree and a slice of piece start positions and lengths (in nodes), and returns
-a vector of <code>PieceInclusionProofs</code> corresponding to the pieces. For this method to work, the piece data used to validate pieces will need to be padded as necessary,
-and pieces will need to be aligned (to 128-byte chunks due to details of <strong><em>preprocessing</em></strong>) when written. This assumes that pieces have been packed and padded according to the assumptions of the algorithm. For this reason, practical implementations should also provide a function to assist in correct packing of pieces.</p>
+a vector of <code>PieceInclusionProofs</code> corresponding to the pieces. For this method to work, the piece data used to validate pieces will need to be padded as necessary, and pieces will need to be aligned (to 128-byte chunks, after padding, due to details of <strong><em>preprocessing</em></strong>) when written. This assumes that pieces have been packed and padded according to the assumptions of the algorithm. For this reason, practical implementations should also provide a function to assist in correct packing of pieces. All pieces will be zero-padded such that the total length of the piece is a multiple of 127 bytes before preprocessing and a multiple of 128 bytes after pre-processing.</p>
 
 <pre><code>GeneratePieceInclusionProofs
  (
   Tree MerkleTree,
   PieceStarts []uint
-  PieceLengths uint,
+  PieceLengths []uint,
  ) []PieceInclusionProof
 </code></pre>
 
-<p><code>GeneratePieceInclusionProof</code> takes a merkle tree and the index positions of the first and last nodes
-of the piece whose inclusion should be proved. It returns a corresponding <code>PieceInclusionProof</code>.
-For the resulting proof to be valid, first_node must be &lt;= last_node.</p>
+<p><code>GeneratePieceInclusionProofs</code> takes a merkle tree, an array of the index positions of the first nodes of the pieces, and an array of the corresponding piece lengths. It returns an array of <code>PieceInclusionProof</code>s corresponding to the supplied start/length pairs — each of which specifies a piece as a sequence of leaves (<code>[start..start+length]</code>) of <code>Tree</code>.</p>
 
 <pre><code>GeneratePieceInclusionProof
  (
@@ -342,6 +325,12 @@ For the resulting proof to be valid, first_node must be &lt;= last_node.</p>
   pieceLength   uint,
  ) err Error |  proof PieceInclusionProof
 </code></pre>
+
+<p>The structure of a <code>PieceInclusionProof</code> is determined by the start position and length of the piece to be proved. (Note that if <code>start + length</code> is greater than the number of leaves in <code>Tree</code>, and no <code>PieceInclusionProof</code> can be generated since these parameters do not specify a valid piece.)</p>
+
+<p>The form of a <code>PieceInclusionProof</code> is as follows:
+ - The piece&rsquo;s position within the tree must be specified. This, combined with the length provided during verification completely determines the shape of the proof.
+ - The remainder of the proof is a series of <code>ProofElements</code>, whose order is interpreted by the proof algorithm and is not (yet: TODO) specified here. The significance of the provided <code>ProofElements</code> is described by their role in the verification algorithm below.</p>
 
 <p><code>VerifyPieceInclusionProof</code> takes a sector data commitment (<code>commD</code>), piece commitment (<code>commP</code>), sector size, and piece size.
 Iff it returns true, then <code>PieceInclusionProof</code> indeed proves that all of piece&rsquo;s bytes were included in the merkle tree corresponding
@@ -358,17 +347,33 @@ piece but actually storing only the piece commitment.</p>
  ) err Error | IsValid bool // true iff the provided PieceInclusionProof is valid.
 </code></pre>
 
+<p>The abstract verification algorithm is described below. Only the algorithm for an <strong><em>aligned <code>PieceInclusionProof</code></em></strong> is fully specified here. [TODO: provide details fully specifying the ordering of <code>ProofElements</code> in the general case.]</p>
+
+<p>A <code>PieceInclusionProof</code> includes a start position and a sequence of <code>ProofElements</code>. Verification of a <code>PieceInclusionProof</code> is with respect to a given <code>commP</code>, <code>commD</code>, sector size, and piece size.</p>
+
+<p>Piece size and start position are used, as in proof generation, to determine the shape of the proof. This shape fully determines the inputs to and order of applications of <code>RepCompress</code> which constitute the proof.</p>
+
+<p>Proof verification is as follows:
+ - A <code>ProofElement</code> is a 32-byte value which will be supplied as either the left or right input to <code>RepCompress</code> (along with an appropriate height) to combine with a complementary (right or left) <code>ProofElement</code> already known to the verifier.
+  - Each time <code>RepCompress</code> is called on a pair of known <code>ProofElements</code>, a new <code>ProofElement</code> is considered to be known to the verifier.
+  - Initially, the verifier knows only of two <code>ProofElements</code>, <code>commP</code> (the Piece Commitment) and <code>commD</code> (the Data Commitment).
+  - The proof proceeds in two stages:
+    1. Zero or more <strong><em>candidate <code>ProofElements</code></em></strong> are proved to hash to <code>commP</code> through subsequent applications of <code>RepCompress</code>. Only after <code>commP</code> has been constructed from a set of <strong><em>candidate <code>ProofElements</code></em></strong> do those <code>ProofElements</code> become <strong><em>eligible</em></strong> for use in the second phase of the proof. (Because <code>RepCompress</code> takes height as an input, only <code>ProofElements</code> from the same height in either the piece or data tree&rsquo;s can be combined. The output of <code>RepCompress</code> is always a <code>ProofElement</code> with height one greater than that of its two inputs.)
+      - <code>commP</code> itself is by definition always <strong><em>eligible</em></strong> for use in the second proof phase.
+      - An <strong><em>aligned <code>PieceInclusionProof</code></em></strong> is one whose <code>start</code> index is a power of 2, and for which <em>either</em> its piece&rsquo;s length is a power of 2 <em>or</em> the piece was zero-padded with <strong>Piece Padding</strong> when packed in a sector. In these cases, <code>commP</code> exists as a node in the data tree, and a minimal-size <code>PieceInclusionProof</code> can be generated.
+      - In the case of an <strong><em>aligned <code>PieceInclusionProof</code></em></strong>, zero candidate <code>ProofElements</code> are required. (This means that <code>commP</code> is the <em>only</em> <strong><em>eligible <code>ProofElement</code></em></strong>.)
+    2. Provided <code>ProofElements</code> are added to the set of <strong><em>eligible <code>ProofElements</code></em></strong> by successive application of <code>RepCompress</code>, as in the first phase.
+      - When <code>commD</code> is produced by application of an <strong><em>eligible <code>ProofElement</code></em></strong> and a <code>ProofElement</code> provided by the proof, the proof is considered complete.
+      - If all <strong><em>eligible <code>ProofElement</code>s</em></strong> have been used as inputs to <code>RepCompress</code> and are dependencies of the final construction of <code>commD</code>, then the proof is considered to be valid.</p>
+
+<p>NOTE: in the case of an <strong><em>aligned <code>PieceInclusionProof</code></em></strong> the <code>ProofElements</code> take the form of a standard Merkle inclusion proof proving that <code>commP</code> is contained in a sub-tree of the data tree whose root is <code>commD</code>. Because <code>commP</code>&rsquo;s position within the data tree is fully specified by the tree&rsquo;s height and the piece&rsquo;s start position and length, the verifier can deterministically combine each successive <code>ProofElement</code> with the result of the previous <code>RepCompress</code> operation as either a right or left input to the next <code>RepCompress</code> operation. In this sense, an <strong><em>aligned <code>PieceInclusionProof</code></em></strong> is simply a Merkle inclusion proof that <code>commP</code> is a constituent of <code>commD</code>&rsquo;s merkle tree <em>and</em> that it is located at the appropriate height for it to also be the root of a (piece) tree with <code>length</code> leaves.</p>
+
+<p>In the non-aligned case, the principle is similar. However, in this case, <code>commP</code> does <em>not</em> occur as a node in <code>commD</code>&rsquo;s Merkle tree. This is because the original piece has been packed out-of-order to minimize alignment padding in the sector (at the cost of a larger <code>PieceInclusionProof</code>). Because <code>commP</code> does not exist as the root of a data sub-tree, it is necessary first to prove that the root of every sub-tree into which the original piece has been decomposed (when reordering) <em>is</em> indeed present in the data tree. Once each <strong><em>candidate <code>ProofElement</code></em></strong> has been proved to be an actual constituent of <code>commP</code>, it must also be shown that this <strong><em>eligible <code>ProofElement</code></em></strong> is <em>also</em> a constituent of <code>commD</code>.</p>
+
 </article>
 
       
-<div class="align-center book-git-footer justify-between">
-  
-  <div>
-    
-    <a href="https://github.com/filecoin-project/specs/commit/9dcf16da57ae5577304bbf442808d35563add0aa" title='Last modified May 11, 2019 by dignifiedquire' target="_blank" rel="noopener">
-      <img src="../../svg/code-merge.svg" alt="Changed" /> May 11, 2019
-    </a>
-  </div>
+<div class="align-center book-git-footer justify-end">
   
   
   <div>
@@ -389,11 +394,13 @@ piece but actually storing only the piece commitment.</p>
   <aside class="book-toc fixed">
     <nav id="TableOfContents">
 <ul>
-<li><a href="#filecoin-proofs">Filecoin Proofs</a>
+<li><a href="#proofs">Proofs</a>
 <ul>
-<li><a href="#filecoin-proof-of-replication">Filecoin Proof of Replication</a></li>
-<li><a href="#seal">Seal</a>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#glossary">Glossary</a></li>
+<li><a href="#proof-of-replication-algorithms">Proof-of-Replication Algorithms</a>
 <ul>
+<li><a href="#seal">Seal</a></li>
 <li><a href="#verifyseal">VerifySeal</a></li>
 <li><a href="#unseal">Unseal</a></li>
 <li><a href="#security-notes">Security Notes</a>
@@ -401,14 +408,8 @@ piece but actually storing only the piece commitment.</p>
 <li><a href="#guaranteeing-sector-uniqueness">Guaranteeing sector uniqueness</a></li>
 </ul></li>
 </ul></li>
-<li><a href="#proof-of-space-time">Proof of Space-Time</a>
-<ul>
-<li><a href="#generatepost">GeneratePost</a></li>
-<li><a href="#verifypost">VerifyPoSt</a></li>
-</ul></li>
 <li><a href="#piece-inclusion-proof">Piece Inclusion Proof</a>
 <ul>
-<li><a href="#pieceinclusionproof">PieceInclusionProof</a></li>
 <li><a href="#generatepieceinclusionproofs">GeneratePieceInclusionProofs</a></li>
 </ul></li>
 </ul></li>

@@ -23,10 +23,14 @@
 <link rel="icon" href="../../favicon.png" type="image/x-icon">
 
 
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js">
+</script>
+
 <!--
 Made with Book Theme
 https://github.com/alex-shpak/hugo-book
 -->
+
 
   <link rel="stylesheet" href="../../css/syntax.css">
 <link href="../../mermaid/mermaid.css" type="text/css" rel="stylesheet" />
@@ -68,7 +72,6 @@ https://github.com/alex-shpak/hugo-book
 <ul>
 <li><a href="../../docs/address/">Address</a></li>
 <li><a href="../../docs/signatures/">Signatures</a></li>
-<li><a href="../../docs/proofs/">Proofs</a></li>
 <li><a href="../../docs/validation/">Block Validation</a></li>
 </ul></li>
 <li><a href="../../docs/networking/">Network</a>
@@ -95,10 +98,16 @@ https://github.com/alex-shpak/hugo-book
 <li><a href="../../docs/faults/">Faults</a></li>
 </ul>
 
-<p><strong>Proofs</strong></p>
+<p><a href="../../docs/proofs/"><strong>Proofs</strong></a></p>
 
 <ul>
-<li><a href="../../docs/zigzag-circuit/">ZigZag</a></li>
+<li><a href="../../docs/zigzag-porep/">Proof-of-Replication</a>
+
+<ul>
+<li><a href="../../docs/zigzag-commitments/">ZigZag Commitments</a></li>
+<li><a href="../../docs/zigzag-circuit/">Circuit</a></li>
+</ul></li>
+<li><a href="../../docs/proof-of-spacetime/">Proof-of-Spacetime</a></li>
 </ul>
 
 <p><a href="../../docs/definitions/"><strong>Glossary</strong></a></p>
@@ -245,19 +254,12 @@ https://github.com/alex-shpak/hugo-book
     <span class="c1">## The address of the payment channel actor that will be used to facilitate payments.</span>
     payChActor Address
 
-    <span class="c1">## Owner of the payment channel.</span>
-    payer Address
-
-    <span class="c1">## ID of the specific channel the client will use to pay the miner. It must already</span>
-    <span class="c1">## have sufficient funds locked up.</span>
-    channel ChannelID
-
     <span class="c1">## Reference to the message used to create the payment channel. This allows the miner to wait until the</span>
-    <span class="c1">## channel is accepted on chain.</span>
+    <span class="c1">## channel is accepted on chain. (optional)</span>
     channelMessage <span class="p">&amp;</span>Message
 
-    <span class="c1">## Set of payments from the client to the miner that can be cashed out contingent on the agreed</span>
-    <span class="c1">## upon data being provably within a live sector in the miners control on-chain.</span>
+  <span class="c1">## Set of payments from the client to the miner that can be cashed out contingent on the agreed</span>
+  <span class="c1">## upon data being provably within a live sector in the miners control on-chain.</span>
     vouchers <span class="o">[</span>SignedVoucher<span class="o">]</span>
 <span class="o">}</span></code></pre></div><div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh"><span class="nb">type</span> DealState enum <span class="o">{</span>
     <span class="c1">## Signifies an unknown negotiation.</span>
@@ -433,8 +435,11 @@ At any point, the client in this flow may query the miner for the state of a giv
 
 <span class="nb">type</span> TipSetBundle struct <span class="o">{</span>
   blocks <span class="o">[</span>Blocks<span class="o">]</span>
-  messages <span class="o">[</span>Message<span class="o">]</span>
-  MsgIncludes <span class="o">[[</span>UInt<span class="o">]]</span>
+  secpMsgs <span class="o">[</span>SignedMessage<span class="o">]</span>
+  secpMsgIncludes <span class="o">[[</span>UInt<span class="o">]]</span>
+
+  blsMsgs <span class="o">[</span>Message<span class="o">]</span>
+  blsMsgIncludes <span class="o">[[</span>Uint<span class="o">]]</span>
 <span class="o">}</span>
 
 <span class="nb">type</span> Status enum <span class="o">{</span>
@@ -448,14 +453,16 @@ At any point, the client in this flow may query the miner for the state of a giv
     <span class="p">|</span> GoAway <span class="m">202</span>
     <span class="c1">## Internal error occured.</span>
     <span class="p">|</span> InternalError <span class="m">203</span>
+    <span class="c1">## Request was bad</span>
+    <span class="p">|</span> BadRequest <span class="m">204</span>
 <span class="o">}</span></code></pre></div>
 <h3 id="example">Example</h3>
 
 <p>The TipSetBundle</p>
 
 <pre><code>Blocks: [b0, b1]
-Messages: [mA, mB, mC, mD]
-MsgIncludes: [[0, 1, 3], [1, 2, 0]]
+secpMsgs: [mA, mB, mC, mD]
+secpMsgIncludes: [[0, 1, 3], [1, 2, 0]]
 </code></pre>
 
 <p>corresponds to:</p>
@@ -467,14 +474,7 @@ Block 'b1': [mB, mC, mA]
 </article>
 
       
-<div class="align-center book-git-footer justify-between">
-  
-  <div>
-    
-    <a href="https://github.com/filecoin-project/specs/commit/9dcf16da57ae5577304bbf442808d35563add0aa" title='Last modified May 11, 2019 by dignifiedquire' target="_blank" rel="noopener">
-      <img src="../../svg/code-merge.svg" alt="Changed" /> May 11, 2019
-    </a>
-  </div>
+<div class="align-center book-git-footer justify-end">
   
   
   <div>

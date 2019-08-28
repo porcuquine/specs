@@ -23,10 +23,14 @@
 <link rel="icon" href="../../favicon.png" type="image/x-icon">
 
 
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js">
+</script>
+
 <!--
 Made with Book Theme
 https://github.com/alex-shpak/hugo-book
 -->
+
 
   <link rel="stylesheet" href="../../css/syntax.css">
 <link href="../../mermaid/mermaid.css" type="text/css" rel="stylesheet" />
@@ -68,7 +72,6 @@ https://github.com/alex-shpak/hugo-book
 <ul>
 <li><a href="../../docs/address/">Address</a></li>
 <li><a href="../../docs/signatures/">Signatures</a></li>
-<li><a href="../../docs/proofs/">Proofs</a></li>
 <li><a href="../../docs/validation/">Block Validation</a></li>
 </ul></li>
 <li><a href="../../docs/networking/">Network</a>
@@ -95,10 +98,16 @@ https://github.com/alex-shpak/hugo-book
 <li><a href="../../docs/faults/">Faults</a></li>
 </ul>
 
-<p><strong>Proofs</strong></p>
+<p><a href="../../docs/proofs/"><strong>Proofs</strong></a></p>
 
 <ul>
-<li><a href="../../docs/zigzag-circuit/">ZigZag</a></li>
+<li><a href="../../docs/zigzag-porep/">Proof-of-Replication</a>
+
+<ul>
+<li><a href="../../docs/zigzag-commitments/">ZigZag Commitments</a></li>
+<li><a href="../../docs/zigzag-circuit/">Circuit</a></li>
+</ul></li>
+<li><a href="../../docs/proof-of-spacetime/">Proof-of-Spacetime</a></li>
 </ul>
 
 <p><a href="../../docs/definitions/"><strong>Glossary</strong></a></p>
@@ -187,9 +196,9 @@ For more detail about the different types of addresses and how they are structur
     <span class="c1">## Tickets is a chain (possibly singleton) of tickets ending with a winning ticket submitted with this block.</span>
     tickets <span class="o">[</span>Ticket<span class="o">]</span>
 
-    <span class="c1">## ElectionProof is a signature over the final ticket that proves this miner</span>
-    <span class="c1">## is the leader at this round</span>
-    electionProof Signature
+    <span class="c1">## ElectionProof is generated from a past ticket and proves this miner</span>
+    <span class="c1">## is a leader at this round</span>
+    electionProof ElectionProof
 
     <span class="c1">## Parents is an array of distinct CIDs of parents on which this block was based.</span>
     <span class="c1">## Typically one, but can be several in the case where there were multiple winning ticket-</span>
@@ -208,8 +217,8 @@ For more detail about the different types of addresses and how they are structur
     stateRoot <span class="p">&amp;</span>StateTree
 
     <span class="c1">## Messages is the set of messages included in this block. This field is the Cid</span>
-    <span class="c1">## of the root of a sharray of Messages.</span>
-    messages <span class="p">&amp;</span><span class="o">[</span><span class="p">&amp;</span>Message<span class="o">]</span>&lt;Sharray&gt;
+    <span class="c1">## of the TxMeta object that contains the bls and secpk signed message trees</span>
+    messages <span class="p">&amp;</span>TxMeta
 
     <span class="c1">## BLSAggregate is an aggregated BLS signature for all the messages in this block that</span>
     <span class="c1">## were signed using BLS signatures</span>
@@ -226,7 +235,74 @@ For more detail about the different types of addresses and how they are structur
     <span class="c1">## BlockSig is a signature over the hash of the entire block with the miners</span>
     <span class="c1">## worker key to ensure that it is not tampered with after creation</span>
     blockSig Signature
+<span class="o">}</span> representation tuple
+
+<span class="nb">type</span> TxMeta struct <span class="o">{</span>
+  blsMessages <span class="p">&amp;</span><span class="o">[</span><span class="p">&amp;</span>Message<span class="o">]</span>&lt;Sharray&gt;
+
+    secpkMessages <span class="p">&amp;</span><span class="o">[</span><span class="p">&amp;</span>SignedMessage<span class="o">]</span>&lt;Sharray&gt;
 <span class="o">}</span> representation tuple</code></pre></div>
+<h2 id="tipset">TipSet</h2>
+
+<p>For more on TipSets, see <a href="../expected-consensus#tipsets">the Expected Consensus spec</a>. Implementations may choose not to create a TipSet data structure, instead representing its operations in terms of the underlying blocks.</p>
+<div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh"><span class="nb">type</span> TipSet <span class="o">[</span><span class="p">&amp;</span>BlockHeader<span class="o">]</span></code></pre></div>
+<h2 id="vrf-personalization">VRF Personalization</h2>
+
+<p>We define VDF personalizations as follow, to enable domain separation across operations that make use of the same VRF (e.g. <a href="#ticket">Ticket</a> and <a href="#electionproof">ElectionProof</a>).</p>
+
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Prefix</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Ticket</td>
+<td><code>0x01</code></td>
+</tr>
+
+<tr>
+<td>ElectionProof</td>
+<td><code>0x02</code></td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="ticket">Ticket</h2>
+
+<p>A ticket is a shared random value stapled to a particular block in the chain. Every miner must produce a new ticket each time they run a leader election attempt. In that sense, every new block produced will have one or more associated tickets (in the case the block took multiple leader election attempts to produce).</p>
+
+<p>We use an <a href="https://tools.ietf.org/html/draft-irtf-cfrg-vrf-04#page-10">EC-VRF per Goldberg et al.</a> with Secp256k1 and sha256 to obtain a deterministic, pseudorandom output.</p>
+<div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh"><span class="nb">type</span> Ticket struct <span class="o">{</span>
+
+  <span class="c1">## The VRFProof (pi_string in the RFC) is generated by running our VRF on a past ticket in the ticket chain signed with the miner&#39;s keypair.</span>
+  <span class="c1">## 97 Bytes long (may be compressible to 80)</span>
+  VRFProof Bytes
+
+  <span class="c1">## The VDFResult is derived from the VRFResult of the ticket</span>
+  <span class="c1">## It is the value that will be used to generate future tickets or ElectionProofs</span>
+  VDFResult Bytes
+
+  <span class="c1">## The VDF proves a delay between tickets generated</span>
+  VDFProof Bytes
+<span class="o">}</span> representation tuple</code></pre></div>
+<h3 id="min-ticket-ticket-comparison">Min Ticket/Ticket Comparison</h3>
+
+<p>The ticket is a struct. Whenever the protocol draws the ticket or in any way uses ticket values (notably in crafting PoSts or running leader election), what is meant is that the Bytes of the <code>VDFResult</code> are used.</p>
+
+<p>Ticket comparison is done using the VDFResult as an unsigned integer (little endian).</p>
+
+<h2 id="electionproof">ElectionProof</h2>
+
+<p>An election proof is generated from a past ticket (chosen based on public network parameters) by a miner during the leader election process. Its output value determines whether the miner is elected leader and may produce a block. Its inclusion in the block allows other network participants to verify that the block was mined by a valid leader.</p>
+<div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh"><span class="nb">type</span> ElectionProof struct <span class="o">{</span>
+  <span class="c1">## The VRFProof is generated by running our VRF on a past ticket in the ticket chain signed with the miner&#39;s keypair.</span>
+  <span class="c1">## 97 Bytes long (may be compressible to 80)</span>
+  VRFProof Bytes
+<span class="o">}</span></code></pre></div>
 <h2 id="message">Message</h2>
 <div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh"><span class="nb">type</span> Message union <span class="o">{</span>
     <span class="p">|</span> UnsignedMessage <span class="m">0</span>
@@ -244,7 +320,10 @@ For more detail about the different types of addresses and how they are structur
     gasPrice UInt
     gasLimit UInt
 
-    method <span class="p">&amp;</span>ActorMethod
+    method Uint
+
+    <span class="c1">## Serialized parameters to the method</span>
+    params Bytes
 <span class="o">}</span> representation tuple</code></pre></div><div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh"><span class="nb">type</span> SignedMessage struct <span class="o">{</span>
     message   UnsignedMessage
     signature Signature
@@ -325,7 +404,9 @@ The <code>ActorState</code> is defined in the <a href="../actors">actors spec</a
 <div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh"><span class="nb">type</span> Bitfield Bytes</code></pre></div>
 <h3 id="sectorset">SectorSet</h3>
 
-<div class="notices todo" >Define me</div>
+<p>A sector set stores a mapping of sector IDs to the respective <code>commR</code>s.</p>
+<div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh"><span class="nb">type</span> SectorSet map<span class="o">{</span>SectorID:Bytes<span class="o">}</span></code></pre></div>
+<div class="notices todo" >Improve on this, see <a href="https://github.com/filecoin-project/specs/issues/116">https://github.com/filecoin-project/specs/issues/116</a></div>
 
 <h3 id="sealproof">SealProof</h3>
 
@@ -339,6 +420,10 @@ The <code>ActorState</code> is defined in the <a href="../actors">actors spec</a
 
 <p>A type to represent an amount of filecoin tokens.</p>
 <div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh"><span class="nb">type</span> TokenAmount UInt</code></pre></div>
+<h3 id="sectorid">SectorID</h3>
+
+<p>Uniquely identifies a miner&rsquo;s sector.</p>
+<div class="highlight"><pre class="chroma"><code class="language-sh" data-lang="sh"><span class="nb">type</span> SectorID uint64</code></pre></div>
 <h2 id="rle-bitset-encoding">RLE+ Bitset Encoding</h2>
 
 <p>RLE+ is a lossless compression format based on <a href="https://en.wikipedia.org/wiki/Run-length_encoding">RLE</a>.
@@ -410,14 +495,7 @@ the same encoding, given the same input.</p>
 </article>
 
       
-<div class="align-center book-git-footer justify-between">
-  
-  <div>
-    
-    <a href="https://github.com/filecoin-project/specs/commit/9dcf16da57ae5577304bbf442808d35563add0aa" title='Last modified May 11, 2019 by dignifiedquire' target="_blank" rel="noopener">
-      <img src="../../svg/code-merge.svg" alt="Changed" /> May 11, 2019
-    </a>
-  </div>
+<div class="align-center book-git-footer justify-end">
   
   
   <div>
@@ -442,6 +520,13 @@ the same encoding, given the same input.</p>
 <ul>
 <li><a href="#address">Address</a></li>
 <li><a href="#block">Block</a></li>
+<li><a href="#tipset">TipSet</a></li>
+<li><a href="#vrf-personalization">VRF Personalization</a></li>
+<li><a href="#ticket">Ticket</a>
+<ul>
+<li><a href="#min-ticket-ticket-comparison">Min Ticket/Ticket Comparison</a></li>
+</ul></li>
+<li><a href="#electionproof">ElectionProof</a></li>
 <li><a href="#message">Message</a></li>
 <li><a href="#state-tree">State Tree</a></li>
 <li><a href="#message-receipt">Message Receipt</a></li>
@@ -460,6 +545,7 @@ the same encoding, given the same input.</p>
 <li><a href="#sealproof">SealProof</a></li>
 <li><a href="#postproof">PoStProof</a></li>
 <li><a href="#tokenamount">TokenAmount</a></li>
+<li><a href="#sectorid">SectorID</a></li>
 </ul></li>
 <li><a href="#rle-bitset-encoding">RLE+ Bitset Encoding</a>
 <ul>

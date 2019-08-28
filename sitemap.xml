@@ -68,6 +68,11 @@
   </url>
   
   <url>
+    <loc>https://filecoin-project.github.io/specs/docs/proof-of-spacetime/</loc>
+    <priority>0</priority>
+  </url>
+  
+  <url>
     <loc>https://filecoin-project.github.io/specs/docs/proofs/</loc>
     <priority>0</priority>
   </url>
@@ -108,13 +113,23 @@
   </url>
   
   <url>
-    <loc>https://filecoin-project.github.io/specs/docs/</loc>
+    <loc>https://filecoin-project.github.io/specs/docs/zigzag-porep/</loc>
     <priority>0</priority>
   </url>
   
   <url>
+    <loc>https://filecoin-project.github.io/specs/docs/zigzag-commitments/</loc>
+    <lastmod>2019-08-28T15:58:46-07:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://filecoin-project.github.io/specs/docs/</loc>
+    <lastmod>2019-08-28T15:58:46-07:00</lastmod>
+  </url>
+  
+  <url>
     <loc>https://filecoin-project.github.io/specs/</loc>
-    <lastmod>2019-05-11T15:33:30+01:00</lastmod>
+    <lastmod>2019-08-28T15:58:46-07:00</lastmod>
   </url>
   
 </urlset>

@@ -66,7 +66,7 @@ Notes  Want to split all repair stuff to separate doc Let&amp;rsquo;s refer to F
       
       <guid>https://filecoin-project.github.io/specs/docs/expected-consensus/</guid>
       <description>Expected Consensus This spec describes how the expected consensus (EC) protocol works in general. To read more about Filecoin-specific processes, see:
- Mining blocks on how consensus is used in block mining. Faults on slashing. Storage market on how the power table is maintained. Block data structure for details on fields and encoding  Important concepts and definitions Some important concepts relevant to expected consensus are: - TipSet - Weight - Height - Round - Epoch - Ticket - ElectionProof</description>
+ Mining Blocks on how consensus is used in block mining. Faults on slashing. Storage market on how the power table is created and maintained. Block data structure for details on fields and encoding.  Important concepts and definitions Some important concepts relevant to expected consensus are: - Verifiable Delay Function (VDF) - Verifiable Random Function (VRF) - TipSet - Ticket - Ticket Chain - Height &amp;ndash; In the realm of EC, it is worth noting that a new ticket must be produced at every height, consequently the duration of a round is bounded by the duration of the Verifiable Delay Function run to generate a ticket.</description>
     </item>
     
     <item>
@@ -95,7 +95,7 @@ Chain Data Private Keys Sectors Storage Deals </description>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
       <guid>https://filecoin-project.github.io/specs/docs/mining/</guid>
-      <description>What is the Filecoin Mining Process An active participant in the filecoin consensus process is a storage miner and expected consensus block proposer. They are responsible for storing data for the filecoin network and also for driving the filecoin consensus process. Miners should constantly be performing Proofs of SpaceTime, and also checking if they have a winning ticket to propose a block for each round. Rounds are currently set to take around 30 seconds, in order to account for network propagation around the world.</description>
+      <description>What is the Filecoin Mining Process An active participant in the filecoin consensus process is a storage miner and expected consensus block proposer. They are responsible for storing data for the filecoin network and also for driving the filecoin consensus process. Miners should constantly be performing Proofs of SpaceTime, and also checking if they have a winning ticket to propose a block at each height/in each round. Rounds are currently set to take around 30 seconds, in order to account for network propagation around the world.</description>
     </item>
     
     <item>
@@ -125,7 +125,8 @@ Required Protocols Every full node must support the following libp2p protocols:
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
       <guid>https://filecoin-project.github.io/specs/docs/payments/</guid>
-      <description>Payments What are payments What payments affect Dependencies Miners Claiming Earnings Storage miners get paid entirely through payment channels. Payment from a client to a storage miner comes in the form of a set of channel updates that get created when proposing the deal. These updates are each time-locked, and can only be cashed out if the storage miner has not been slashed for the storage that is being paid for.</description>
+      <description>Payments What are payments What payments affect Dependencies Miners Claiming Earnings Storage Miners claim their Storage Market earnings via payment channels.
+The client proposes the cadence of the earnings for a deal by creating SignedVoucher-s. Each vouchers specify how often Storage Miners can claim earnings and how much each earning should be, more precisely, each voucher has some tokens assigned and can be redeemed only at a particular block height.</description>
     </item>
     
     <item>
@@ -139,12 +140,22 @@ Required Protocols Every full node must support the following libp2p protocols:
     
     <item>
       <title></title>
+      <link>https://filecoin-project.github.io/specs/docs/proof-of-spacetime/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://filecoin-project.github.io/specs/docs/proof-of-spacetime/</guid>
+      <description>Proof-of-Spacetime This document describes Rational-PoSt, the Proof-of-Spacetime used in Filecoin.
+Rational PoSt Definitions    Name Value Description     POST_PROVING_PERIOD 2880 blocks (~24h) The time interval in which a PoSt has to be submitted.   POST_CHALLENGE_TIME 240 blocks (~2h) The time offset at which the actual work of generating the PoSt can not be started earlier than. This is some delta before the end of the Proving Period, and as such less then a single Proving Period.</description>
+    </item>
+    
+    <item>
+      <title></title>
       <link>https://filecoin-project.github.io/specs/docs/proofs/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
       <guid>https://filecoin-project.github.io/specs/docs/proofs/</guid>
-      <description>Filecoin Proofs The Filecoin protocol requires a means of generating and verifying the following cryptographic proofs:
- Proof of Replication proves that a unique copy of a given sector has been created. The Seal operation creates this unique copy and generates a corresponding Proof of Replication. Proof of Space-Time proves that an arbitrary number of sealed sectors existed over a specified period of time in their own dedicated storage — as opposed to being generated on-the-fly at proof time.</description>
+      <description>Proofs Overview The Filecoin protocol uses cryptographic proofs to ensure the two following guarantees:
+ Storage Based Consensus: Miners&amp;rsquo; power in the consensus is proportional to their amount of storage. Miner increase their power by proving that they are dedicating unique storage to the network. Verifiable Storage Market: Miners must be proving that they are dedicating unique physical space for each copy of the clients data through a period of time.</description>
     </item>
     
     <item>
@@ -217,6 +228,28 @@ Validation is split into two stages, syntactic and semantic. The syntactic stage
       <description>ZigZag: Offline PoRep Circuit Spec ZigZag is the Proof of Replication used in Filecoin. The prover encodes the original data into a replica and commits to it. An offline PoRep proves that the commitment to the replica is a valid commitment of the encoded original data.
 ZigZag has been presented by Ben Fisch at EUROCRYPT19.
 ZigZag Overview ZigZag PoRep is based on layering DRG graphs LAYERS times. The data represented in each DRG layer is the data encoded in the previous layer.</description>
+    </item>
+    
+    <item>
+      <title></title>
+      <link>https://filecoin-project.github.io/specs/docs/zigzag-porep/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://filecoin-project.github.io/specs/docs/zigzag-porep/</guid>
+      <description>Proof-of-Replication This spec describes the specific Proof-of-Replication used in Filecoin called ZigZag.
+ZigZag has been presented by Ben Fisch at EUROCRYPT19.
+Introduction Background on Proof-of-Replication Proof-of-Replication enables a prover P to convince a verifier V that P is storing a replica R, a physically independent copy of some data D, unique to P. The scheme is defined by a tuple of polynomial time algorithms (Setup, Replication, Prove, Verify). The assumption is that generation of a replica after Replicate must be difficult (if not impossible) to generate.</description>
+    </item>
+    
+    <item>
+      <title></title>
+      <link>https://filecoin-project.github.io/specs/docs/zigzag-commitments/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>https://filecoin-project.github.io/specs/docs/zigzag-commitments/</guid>
+      <description>+TITLE: ZigZag Commitments
+Introduction This document provides a simplified visual explanation of the ZigZag Commitment algorithm described in Tight PoS - ZigZag.
+It is intended to confer intuition about the algorithm, and to serve as a reference for implementers. The author of this document and those of the linked paper believe the two are consistent; and converging on this consistent design was a third design goal of this document&amp;rsquo;s construction.</description>
     </item>
     
   </channel>
